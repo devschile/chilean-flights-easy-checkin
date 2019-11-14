@@ -1,0 +1,46 @@
+{
+  "name": "chilean-flights-easy-checkin-functions",
+  "version": "0.0.1",
+  "description": "Functions for chilean-flights-easy-checkin",
+  "main": "checkin.js",
+  "scripts": {
+    "lint": "eslint . --fix",
+    "format": "prettier-standard '{src,test}/**/*.js'",
+    "test": "echo \"no tests\""
+  },
+  "engines": {
+    "node": ">=12"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devschile/chilean-flights-easy-checkin.git"
+  },
+  "keywords": [
+    "checkin",
+    "skyairline"
+  ],
+  "author": "Leonardo Gatica <lgatica@protonmail.com> (https://about.me/lgatica)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/devschile/chilean-flights-easy-checkin/issues"
+  },
+  "homepage": "https://github.com/devschile/chilean-flights-easy-checkin/tree/master/functions",
+  "dependencies": {
+    "chrome-aws-lambda": "2.0.0",
+    "date-fns": "2.7.0",
+    "puppeteer-core": "2.0.0",
+    "rut.js": "1.0.2",
+    "winston": "3.2.1",
+    "winston-sentry-log": "1.0.11"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "8.10.35",
+    "puppeteer": "2.0.0"
+  },
+  "eslintConfig": {
+    "extends": "@eclass"
+  },
+  "eslintIgnore": [
+    "coverage"
+  ]
+}
