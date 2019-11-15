@@ -34,10 +34,12 @@ exports.handler = async event => {
     logger.debug(`body: ${JSON.stringify(body)}`)
     if (!/^\w{6}$/.test(code)) errors.push('EINVALIDCODE')
     if (!validate(rut)) errors.push('EINVALIDRUT')
-    if (!isValid(parse(birthDate, 'yyyy-MM-dd', new Date())))
+    if (!isValid(parse(birthDate, 'yyyy-MM-dd', new Date()))) {
       errors.push('EINVALIDBIRTHDAY')
-    if (!isValid(parse(expireDate, 'yyyy-MM-dd', new Date())))
+    }
+    if (!isValid(parse(expireDate, 'yyyy-MM-dd', new Date()))) {
       errors.push('EINVALIDEXPIREDATE')
+    }
     if (errors.length > 0) {
       response.statusCode = 400
       response.body = JSON.stringify({ success: false, errors })
