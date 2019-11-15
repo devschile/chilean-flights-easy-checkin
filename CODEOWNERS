@@ -1,0 +1,29 @@
+# Commons
+.circleci/* @checkin
+.github/* @checkin
+.vscode/* @checkin
+.editorconfig @checkin
+.env-example @checkin
+.gitignore @checkin
+.npmrc @checkin
+.nvmrc @checkin
+.travis.ym @checkin
+LICENSE @checkin
+netlify.toml @checkin
+package.json @checkin
+*.md @checkin
+yarn.lock @checkin
+
+# Frontend
+src/* @raulghm
+public/* @raulghm
+tests/* @raulghm
+babel* @raulghm
+*.png @raulghm
+lighthouse.json @raulghm
+vue.config.js @raulghm
+.htmlnanorc @raulghm
+
+# Backend
+functions/* @lgaticaq
+webpack.functions.js @lgaticaq
