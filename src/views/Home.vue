@@ -3,22 +3,18 @@
     <div class="Home-body">
       <div class="Home-title">
         <img src="/img/ico-galaga.png" alt="">
-        <h1>Flight check-in</h1>
+        <h1>
+          Chilean Flights check-in
+        </h1>
       </div>
 
-      <template v-if="isChecking">
-        <p class="nes-balloon from-left nes-pointer">
-          Realizando check-in, espera un momento...
-        </p>
-        <progress class="nes-progress is-success" :value="progressBar" max="100"></progress>
-      </template>
-
-      <template v-else>
+      <template v-if="!isChecking">
         <div class="Home-welcome">
-          <div class="nes-container is-rounded is-dark">
+          <p class="nes-balloon from-left">
             Bienvenido, ingresa tus datos e intentaremos realizar el check-in
             de tu vuelo de forma automática.
-          </div>
+          </p>
+          <i class="nes-octocat animate"></i>
         </div>
 
         <ValidationObserver ref="form">
@@ -26,34 +22,37 @@
             class="Form"
             @submit.prevent="submit"
           >
+            <v-select
+              name="Aerolínea"
+            />
             <v-input
               name="Código vuelo"
               placeholder="0000"
               rules="required"
-              v-model="code"
+              v-model="form.code"
             />
             <v-input
               name="Apellido"
               rules="required"
-              v-model="lastName"
+              v-model="form.lastName"
             />
             <v-input
               name="Fecha de nacimiento"
               type="date"
               rules="required"
-              v-model="date"
+              v-model="form.date"
             />
             <v-input
               name="RUT"
               placeholder="11.111.111.1"
               rules="required|rut"
-              v-model="dni"
+              v-model="form.dni"
             />
             <v-input
               name="Expiración documento"
               type="date"
               rules="required"
-              v-model="expDni"
+              v-model="form.expDni"
             />
 
             <div class="Form-submit">
@@ -81,6 +80,16 @@
           </form>
         </dialog>
       </template>
+
+      <template v-else>
+        <div class="Home-checking">
+          <p class="nes-balloon from-right">
+            Realizando check-in, espera un momento...
+          </p>
+          <i class="nes-octocat animate"></i>
+          <progress class="nes-progress is-success" :value="progressBar" max="100"></progress>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -88,21 +97,25 @@
 <script>
 import { ValidationObserver } from 'vee-validate'
 import vInput from '@/components/v-Input'
+import vSelect from '@/components/v-Select'
 
 export default {
   name: 'Home',
 
   components: {
     ValidationObserver,
-    vInput
+    vInput,
+    vSelect
   },
 
   data: () => ({
-    code: '',
-    lastName: '',
-    date: '',
-    dni: '',
-    expDni: '',
+    form: {
+      code: '',
+      lastName: '',
+      date: '',
+      dni: '',
+      expDni: ''
+    },
     isChecking: false,
     progressBar: 0
   }),
@@ -119,7 +132,7 @@ export default {
     },
 
     async loading () {
-      for (let i = 0; i < 100; i++) {
+      for (let i = 0; i <= 100; i++) {
         await this.delay(80)
         this.progressBar = i
       }
@@ -145,6 +158,7 @@ export default {
 
 .Home-title h1 {
   font-size: 1.6rem;
+  letter-spacing: 1px;
 }
 
 .Home-title img {
@@ -155,6 +169,14 @@ export default {
 .Home-welcome {
   margin: 2em 0;
   font-size: .8rem;
+}
+
+.Home-checking {
+  text-align: right;
+}
+
+.Home-checking .nes-balloon {
+  text-align: center;
 }
 
 .Form-field {
