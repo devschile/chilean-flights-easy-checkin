@@ -12,7 +12,6 @@
         :id="_name"
         :placeholder="placeholder"
         v-model="inputValue"
-        @input="emitInput"
       >
       <div class="Form-error" v-if="errors[0]">
         {{ errors[0] }}
@@ -72,10 +71,7 @@ export default {
       required: true
     },
     placeholder: String,
-    rules: String,
-    success: Boolean,
-    warning: Boolean,
-    error: Boolean
+    rules: String
   },
 
   components: {
@@ -85,14 +81,6 @@ export default {
   computed: {
     _name () {
       return this.name.replace(/\s+/g, '-').trim().toLowerCase()
-    },
-
-    _classes () {
-      return {
-        'is-success': this.success,
-        'is-warning': this.warning,
-        'is-error': this.error
-      }
     }
   },
 
@@ -100,23 +88,17 @@ export default {
     return {
       inputValue: this.initValue
     }
-  },
-
-  methods: {
-    emitInput () {
-      this.$emit('input', this.inputValue)
-    }
   }
 }
 </script>
 
-<style>
+<style scoped>
 .Form-field {
   color: var(--color-white);
 }
 
 .Form-error {
-  margin: .4em 0;
+  margin: .6em 0;
   font-size: .8rem;
 }
 </style>
