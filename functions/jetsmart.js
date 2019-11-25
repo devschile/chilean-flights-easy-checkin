@@ -4,7 +4,19 @@ const { isValid, parse } = require('date-fns')
 const { validate, clean } = require('rut.js')
 const logger = require('./utils/logger')
 
-/* eslint-disable sonarjs/no-duplicate-string */
+/**
+ * @param {number} timeout - Delay in ms.
+ * @returns {Promise<void>} -
+ * @example
+ * await delay(5000)
+ */
+const delay = timeout => {
+  return new Promise(resolve => {
+    setTimeout(resolve, timeout)
+  })
+}
+
+/* eslint-disable sonarjs/no-duplicate-string, sonarjs/cognitive-complexity */
 /**
  * @typedef {import('aws-lambda').APIGatewayProxyEvent} APIGatewayProxyEvent
  * @typedef {import('aws-lambda').APIGatewayProxyResult} APIGatewayProxyResult
@@ -24,7 +36,14 @@ exports.handler = async event => {
     body: JSON.stringify({ success: true })
   }
   const errors = []
+  /** @type {import('puppeteer').Browser} */
+  let browser
   try {
+    const DOCUMENT_TYPES = new Map([
+      ['rut', 'N'],
+      ['passport', 'P'],
+      ['dni', 'DNI']
+    ])
     const GENDERS = new Map([['male', '1'], ['female', '2']])
     let body = {}
     if (event.httpMethod === 'GET') {
@@ -50,12 +69,15 @@ exports.handler = async event => {
     }
     if (!GENDERS.has(gender)) errors.push('EINVALIDGENDER')
     if (lastName.trim() === '') errors.push('EINVALIDLASTNAME')
-    if (emergencyContactName.trim() === '')
+    if (emergencyContactName.trim() === '') {
       errors.push('EINVALIDEMERGENCYCONTACTNAME')
-    if (!/^+?\d{9,11}$/.test(emergencyContactPhoneNumber))
+    }
+    if (!/^\+?\d{9,11}$/.test(emergencyContactPhoneNumber)) {
       errors.push('EINVALIDEMERGENCYCONTACTPHONENUMBER')
-    if (!/^\w+@\w+\.\w+$/.test(emergencyContactEmail))
+    }
+    if (!/^\w+@\w+\.\w+$/.test(emergencyContactEmail)) {
       errors.push('EINVALIDEMERGENCYCONTACTPHONENUMBER')
+    }
     if (errors.length > 0) {
       response.statusCode = 400
       response.body = JSON.stringify({ success: false, errors })
@@ -63,8 +85,6 @@ exports.handler = async event => {
     }
     const [birthdateYear, birthdateMonth, birthdateDay] = birthDate.split('-')
     logger.debug('launch browser')
-    /** @type {import('puppeteer').Browser} */
-    let browser
     if (process.env.NODE_ENV === 'production') {
       browser = await chromium.puppeteer.launch({
         args: chromium.args,
@@ -84,6 +104,7 @@ exports.handler = async event => {
     logger.debug('go to jetsmart')
     await page.goto('https://jetsmart.com/cl/es/')
     await page.setViewport({ width: 1366, height: 663 })
+    await navigationPromise
 
     logger.debug('open checkin modal')
     await page.waitForSelector(
@@ -99,7 +120,7 @@ exports.handler = async event => {
       '.modal-content > .row > .col-xs-1 > .modal-right-content > .modal-form > .row > .col-xs-1-2:nth-child(2) > .form-group > label'
     )
 
-    logger.debug('type lastname')
+    logger.debug(`type lastname ${lastName}`)
     await page.waitForSelector(
       '.modal-content > .row > .col-xs-1 > .modal-right-content > .modal-form > .form-group > input:nth-child(2)'
     )
@@ -108,7 +129,7 @@ exports.handler = async event => {
       lastName
     )
 
-    logger.debug('type code')
+    logger.debug(`type code ${code}`)
     await page.waitForSelector(
       '.modal-content > .row > .col-xs-1 > .modal-right-content > .modal-form > .form-group:nth-child(3) > input'
     )
@@ -126,42 +147,94 @@ exports.handler = async event => {
     )
     await navigationPromise
 
+    logger.debug('click in checkin')
     await page.waitForSelector(
-      '.row > .col-xs-1-2 > #checkinTooltip0 > .mdl-button > .mdl-button__ripple-container'
+      '.row > .col-xs-1-2 > .checkin-tooltip > .mdl-button > .mdl-button__ripple-container'
+    )
+    if (
+      (await page.$(
+        '.row > .col-xs-1-2 > #checkinTooltip0 > .mdl-button > .mdl-button__ripple-container'
+      )) !== null
+    ) {
+      await page.click(
+        '.row > .col-xs-1-2 > #checkinTooltip0 > .mdl-button > .mdl-button__ripple-container'
+      )
+    } else if (
+      (await page.$(
+        '.row > .col-xs-1-2 > #checkinTooltip1 > .mdl-button > .mdl-button__ripple-container'
+      )) !== null
+    ) {
+      await page.click(
+        '.row > .col-xs-1-2 > #checkinTooltip1 > .mdl-button > .mdl-button__ripple-container'
+      )
+    }
+    await navigationPromise
+
+    logger.debug('baggage confirmation')
+    await delay(5000)
+    await page.waitForSelector(
+      'baggage-page > #baggagesForm > .text-right > .baggage-submit > .mdl-button__ripple-container'
     )
     await page.click(
-      '.row > .col-xs-1-2 > #checkinTooltip0 > .mdl-button > .mdl-button__ripple-container'
+      'baggage-page > #baggagesForm > .text-right > .baggage-submit > .mdl-button__ripple-container'
     )
     await navigationPromise
 
-    await page.waitForSelector(
-      'baggage-page > #baggagesForm > .text-right > .baggage-submit > .mdl-button__ripple-container'
-    )
-    await page.click(
-      'baggage-page > #baggagesForm > .text-right > .baggage-submit > .mdl-button__ripple-container'
-    )
-
+    logger.debug('free random assignment')
     await page.waitForSelector(
       '.col-xs-1 > .outer-package-box > .seatmap-info > .seatmap-button-container > .secondary-btn:nth-child(1)'
     )
     await page.click(
       '.col-xs-1 > .outer-package-box > .seatmap-info > .seatmap-button-container > .secondary-btn:nth-child(1)'
     )
+    await navigationPromise
+    await delay(5000)
 
-    await page.waitForSelector(
-      '.outer-package-box > .seatmap-info > .seatmap-button-container > #ctn01 > .mdl-button__ripple-container'
-    )
-    await page.click(
-      '.outer-package-box > .seatmap-info > .seatmap-button-container > #ctn01 > .mdl-button__ripple-container'
-    )
+    /**
+     * @param {string} selector -
+     * @returns {Promise<boolean>} -
+     * @example
+     * const hidden = isHidden('#myId')
+     */
+    const isHidden = selector =>
+      page.evaluate(selector => {
+        /** @type {HTMLElement} */
+        const btn = document.querySelector(selector)
+        return btn.hidden
+      }, selector)
 
-    await page.waitForSelector(
-      '.seatmap-second-leg-modal > .modal-content > .modal-body > .checkin-modal-buttons > .checkin-modal-no'
-    )
-    await page.click(
-      '.seatmap-second-leg-modal > .modal-content > .modal-body > .checkin-modal-buttons > .checkin-modal-no'
-    )
+    if (
+      !(await isHidden(
+        '.outer-package-box > .seatmap-info > .seatmap-button-container > .secondary-btn:nth-child(3)'
+      ))
+    ) {
+      logger.debug('select seats at another time one way')
+      await page.click(
+        '.outer-package-box > .seatmap-info > .seatmap-button-container > .secondary-btn:nth-child(3)'
+      )
+    }
 
+    logger.debug('continue')
+    if (
+      !(await isHidden(
+        '.outer-package-box > .seatmap-info > .seatmap-button-container > #ctn01'
+      ))
+    ) {
+      await page.click(
+        '.outer-package-box > .seatmap-info > .seatmap-button-container > #ctn01'
+      )
+    } else if (
+      !(await isHidden(
+        '.outer-package-box > .seatmap-info > .seatmap-button-container > #ctn02'
+      ))
+    ) {
+      await page.click(
+        '.outer-package-box > .seatmap-info > .seatmap-button-container > #ctn02'
+      )
+    }
+    await navigationPromise
+
+    logger.debug('continue without extras')
     await page.waitForSelector(
       'div > #extrasForm > .text-right > .extras-submit > .mdl-button__ripple-container'
     )
@@ -169,14 +242,15 @@ exports.handler = async event => {
       'div > #extrasForm > .text-right > .extras-submit > .mdl-button__ripple-container'
     )
     await navigationPromise
+    delay(5000)
 
-    await page.waitForSelector(
-      '.col-xs-1 > .chkbox-btn-wrapper > .mdl-checkbox > .mdl-checkbox__label > .cb-title'
-    )
-    await page.click(
-      '.col-xs-1 > .chkbox-btn-wrapper > .mdl-checkbox > .mdl-checkbox__label > .cb-title'
-    )
+    logger.debug('select passenger')
+    await page.waitForSelector('#passenger_0')
+    await page.click('#passenger_0')
+    await navigationPromise
+    delay(5000)
 
+    logger.debug('continue')
     await page.waitForSelector(
       '#mainContentWrapper > .booking-wrapper > checkin-flow-passenger-container > .checkin-btn-container > .primary-btn'
     )
@@ -184,31 +258,36 @@ exports.handler = async event => {
       '#mainContentWrapper > .booking-wrapper > checkin-flow-passenger-container > .checkin-btn-container > .primary-btn'
     )
     await navigationPromise
+    delay(5000)
 
+    logger.debug('select document type RUT')
     await page.waitForSelector(
       'checkin-passenger-document > .row > .col-xs-1 > .mdl-textfield > .mdl-textfield__input:nth-child(2)'
     )
-    await page.click(
-      'checkin-passenger-document > .row > .col-xs-1 > .mdl-textfield > .mdl-textfield__input:nth-child(2)'
+    await page.select(
+      'checkin-passenger-document > .row > .col-xs-1 > .mdl-textfield > .mdl-textfield__input:nth-child(2)',
+      DOCUMENT_TYPES.get('rut')
     )
+    await navigationPromise
 
-    logger.debug('type rut')
+    const cleanRut = clean(rut)
+    logger.debug(`type rut ${cleanRut}`)
     await page.waitForSelector(
       'checkin-passenger-document > .row > .col-xs-1:nth-child(2) > .mdl-textfield > .mdl-textfield__input'
     )
+    await page.evaluate(() => {
+      /** @type {HTMLInputElement} */
+      const input = document.querySelector(
+        'checkin-passenger-document > .row > .col-xs-1:nth-child(2) > .mdl-textfield > .mdl-textfield__input'
+      )
+      input.value = ''
+    })
     await page.type(
       'checkin-passenger-document > .row > .col-xs-1:nth-child(2) > .mdl-textfield > .mdl-textfield__input',
-      clean(rut)
+      cleanRut
     )
 
-    await page.waitForSelector(
-      '.booking-wrapper > .inner-box > .inner-deep-box > .checkin-pax-container > checkin-passenger-document'
-    )
-    await page.click(
-      '.booking-wrapper > .inner-box > .inner-deep-box > .checkin-pax-container > checkin-passenger-document'
-    )
-
-    logger.debug('select gender')
+    logger.debug(`select gender ${gender}`)
     await page.waitForSelector(
       'checkin-passenger-document #jetSmartPassengers_0__Info_Gender'
     )
@@ -217,51 +296,50 @@ exports.handler = async event => {
       GENDERS.get(gender)
     )
 
-    logger.debug('select birthdate day')
+    logger.debug(`select birthdate day ${birthdateDay}`)
     await page.waitForSelector('.row #date_of_birth_day_0')
     await page.select('.row #date_of_birth_day_0', birthdateDay)
 
-    logger.debug('select birthdate month')
+    logger.debug(`select birthdate month ${birthdateMonth}`)
     await page.waitForSelector('.row #date_of_birth_month_0')
-    await page.select('.row #date_of_birth_month_0', birthdateMonth)
+    await page.select(
+      '.row #date_of_birth_month_0',
+      parseInt(birthdateMonth, 10).toString()
+    )
 
-    logger.debug('select birthdate year')
+    logger.debug(`select birthdate year ${birthdateYear}`)
     await page.waitForSelector('.row #date_of_birth_year_0')
     await page.select('.row #date_of_birth_year_0', birthdateYear)
 
-    await page.waitForSelector(
-      '.col-xs-1 > .mdl-checkbox-wrapper > .mdl-checkbox > .mdl-checkbox__box-outline > .mdl-checkbox__tick-outline'
-    )
-    await page.click(
-      '.col-xs-1 > .mdl-checkbox-wrapper > .mdl-checkbox > .mdl-checkbox__box-outline > .mdl-checkbox__tick-outline'
-    )
-
-    await page.waitForSelector(
-      'app > .content-wrapper > checkin-additional-info > .checkin-btn-container > .primary-btn'
-    )
-    await page.click(
-      'app > .content-wrapper > checkin-additional-info > .checkin-btn-container > .primary-btn'
-    )
-
-    logger.debug('type emergency contact name')
+    logger.debug(`type emergency contact name ${emergencyContactName}`)
     await page.waitForSelector('.inner-deep-box #emergencyContact_CompanyName')
     await page.type(
       '.inner-deep-box #emergencyContact_CompanyName',
       emergencyContactName
     )
 
-    logger.debug('type emergency contact phone number')
+    logger.debug(
+      `type emergency contact phone number ${emergencyContactPhoneNumber}`
+    )
     await page.waitForSelector('.inner-deep-box #emergencyContact_PhoneNumber')
     await page.type(
       '.inner-deep-box #emergencyContact_PhoneNumber',
       emergencyContactPhoneNumber
     )
 
-    logger.debug('type emergency contact email')
+    logger.debug(`type emergency contact email ${emergencyContactEmail}`)
     await page.waitForSelector('.inner-deep-box #emergencyContact_EmailAddress')
     await page.type(
       '.inner-deep-box #emergencyContact_EmailAddress',
       emergencyContactEmail
+    )
+
+    logger.debug('confirmation of declaration of dangerous elements')
+    await page.waitForSelector(
+      '.col-xs-1 > .mdl-checkbox-wrapper > .mdl-checkbox > .mdl-checkbox__box-outline > .mdl-checkbox__tick-outline'
+    )
+    await page.click(
+      '.col-xs-1 > .mdl-checkbox-wrapper > .mdl-checkbox > .mdl-checkbox__box-outline > .mdl-checkbox__tick-outline'
     )
 
     logger.debug('continue')
@@ -272,17 +350,27 @@ exports.handler = async event => {
       'app > .content-wrapper > checkin-additional-info > .checkin-btn-container > .primary-btn'
     )
     await navigationPromise
+    await delay(5000)
 
+    logger.debug('boarding pass download for desktop')
+    await page.waitForSelector(
+      '#mainContentWrapper > .booking-wrapper > boarding-pass > .boarding-pass-btn-container > button:nth-child(2)'
+    )
+    await page.click(
+      '#mainContentWrapper > .booking-wrapper > boarding-pass > .boarding-pass-btn-container > button:nth-child(2)'
+    )
+    await navigationPromise
+
+    logger.debug('boarding pass download for phone')
     await page.waitForSelector(
       '#mainContentWrapper > .booking-wrapper > boarding-pass > .boarding-pass-btn-container > button:nth-child(3)'
     )
     await page.click(
       '#mainContentWrapper > .booking-wrapper > boarding-pass > .boarding-pass-btn-container > button:nth-child(3)'
     )
+    await navigationPromise
 
-    await page.waitForSelector('body > a')
-    await page.click('body > a')
-
+    logger.debug('close browser')
     await browser.close()
     return response
   } catch (err) {
@@ -290,7 +378,9 @@ exports.handler = async event => {
     errors.push('EINTERNAL')
     response.statusCode = 500
     response.body = JSON.stringify({ success: false, errors })
+    logger.debug('close browser')
+    await browser.close()
     return response
   }
 }
-/* eslint-enable sonarjs/no-duplicate-string */
+/* eslint-enable sonarjs/no-duplicate-string, sonarjs/cognitive-complexity */
